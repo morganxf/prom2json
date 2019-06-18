@@ -14,7 +14,6 @@
 package prom2json
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io"
 	"mime"
@@ -135,28 +134,9 @@ func makeBuckets(m *dto.Metric) map[string]string {
 // returns after all MetricFamilies have been sent.
 func FetchMetricFamilies(
 	url string, ch chan<- *dto.MetricFamily,
-	certificate string, key string,
-	skipServerCertCheck bool,
+	client *http.Client,
 ) error {
 	defer close(ch)
-	var transport *http.Transport
-	if certificate != "" && key != "" {
-		cert, err := tls.LoadX509KeyPair(certificate, key)
-		if err != nil {
-			return err
-		}
-		tlsConfig := &tls.Config{
-			Certificates:       []tls.Certificate{cert},
-			InsecureSkipVerify: skipServerCertCheck,
-		}
-		tlsConfig.BuildNameToCertificate()
-		transport = &http.Transport{TLSClientConfig: tlsConfig}
-	} else {
-		transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: skipServerCertCheck},
-		}
-	}
-	client := &http.Client{Transport: transport}
 	return decodeContent(client, url, ch)
 }
 
