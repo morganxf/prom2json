@@ -26,3 +26,6 @@ _testmain.go
 .build
 /prom2json
 *-stamp
+
+.idea
+cmd/prom2json/prom2json

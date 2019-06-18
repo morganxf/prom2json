@@ -17,7 +17,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/prometheus/common/log"
 
@@ -29,7 +32,7 @@ import (
 func main() {
 	cert := flag.String("cert", "", "certificate file")
 	key := flag.String("key", "", "key file")
-	skipServerCertCheck := flag.Bool("accept-invalid-cert", false, "Accept any certificate during TLS handshake. Insecure, use only for testing.")
+	timeout := flag.Duration("timeout", 0, "request timeout (no timeout by default)")
 	flag.Parse()
 
 	if len(flag.Args()) != 1 {
@@ -41,8 +44,20 @@ func main() {
 
 	mfChan := make(chan *dto.MetricFamily, 1024)
 
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   *timeout,
+				KeepAlive: 3 * time.Minute,
+			}).DialContext,
+			MaxIdleConns:    100,
+			MaxConnsPerHost: 100,
+		},
+		Timeout: *timeout,
+	}
+
 	go func() {
-		err := prom2json.FetchMetricFamilies(flag.Args()[0], mfChan, *cert, *key, *skipServerCertCheck)
+		err := prom2json.FetchMetricFamilies(flag.Args()[0], mfChan, httpClient)
 		if err != nil {
 			log.Fatal(err)
 		}
