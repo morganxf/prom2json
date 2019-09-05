@@ -15,8 +15,11 @@ package prom2json
 
 import (
 	"math"
+	"net"
+	"net/http"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	dto "github.com/prometheus/client_model/go"
@@ -244,5 +247,75 @@ func createBucket(bound float64, count uint64) *dto.Bucket {
 	return &dto.Bucket{
 		UpperBound:      &bound,
 		CumulativeCount: &count,
+	}
+}
+
+func BenchmarkFetchMetricFamiliesProtoBuf(b *testing.B) {
+	var testCases = []struct {
+		url          string
+		acceptHeader string
+		httpClient   *http.Client
+	}{
+		{
+			url:          "http://11.166.140.223:9200/metrics",
+			acceptHeader: `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`,
+			httpClient: &http.Client{
+				Transport: &http.Transport{
+					DialContext: (&net.Dialer{
+						Timeout:   0,
+						KeepAlive: 3 * time.Minute,
+					}).DialContext,
+					MaxIdleConns:    100,
+					MaxConnsPerHost: 100,
+				},
+				Timeout: 0,
+			},
+		},
+	}
+	for _, testCase := range testCases {
+		SetAcceptHeader(testCase.acceptHeader)
+		for i := 0; i < b.N; i++ {
+			mfChan := make(chan *dto.MetricFamily, 1024)
+			go func() {
+				FetchMetricFamilies(testCase.url, mfChan, testCase.httpClient)
+			}()
+			for _ = range mfChan {
+			}
+		}
+	}
+}
+
+func BenchmarkFetchMetricFamiliesText(b *testing.B) {
+	var testCases = []struct {
+		url          string
+		acceptHeader string
+		httpClient   *http.Client
+	}{
+		{
+			url:          "http://11.166.140.223:9200/metrics",
+			acceptHeader: `q=0.7,text/plain;version=0.0.4;q=0.3`,
+			httpClient: &http.Client{
+				Transport: &http.Transport{
+					DialContext: (&net.Dialer{
+						Timeout:   0,
+						KeepAlive: 3 * time.Minute,
+					}).DialContext,
+					MaxIdleConns:    100,
+					MaxConnsPerHost: 100,
+				},
+				Timeout: 0,
+			},
+		},
+	}
+	for _, testCase := range testCases {
+		SetAcceptHeader(testCase.acceptHeader)
+		for i := 0; i < b.N; i++ {
+			mfChan := make(chan *dto.MetricFamily, 1024)
+			go func() {
+				FetchMetricFamilies(testCase.url, mfChan, testCase.httpClient)
+			}()
+			for _ = range mfChan {
+			}
+		}
 	}
 }

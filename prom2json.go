@@ -25,7 +25,11 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
-const acceptHeader = `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`
+var acceptHeader = `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3`
+
+func SetAcceptHeader(accept string) {
+	acceptHeader = accept
+}
 
 // Family mirrors the MetricFamily proto message.
 type Family struct {
